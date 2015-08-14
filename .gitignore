@@ -36,3 +36,5 @@
 
 [Dd]ebug/
 [Tt]emp/
+
+*.sdf
