@@ -1,5 +1,6 @@
 #include <iostream>
 #include "sockets.hpp"
+#include "lobby.hpp"
 
 using namespace Sockets;
 

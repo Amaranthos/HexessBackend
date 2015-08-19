@@ -21,12 +21,18 @@
     <ClCompile Include="sockets.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="lobby.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="sockets.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="packet.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="lobby.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

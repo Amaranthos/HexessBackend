@@ -74,10 +74,12 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="lobby.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="sockets.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="lobby.hpp" />
     <ClInclude Include="packet.hpp" />
     <ClInclude Include="sockets.hpp" />
   </ItemGroup>
