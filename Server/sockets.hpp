@@ -14,7 +14,7 @@ struct IPv4Addr {
 };
 
 int InitSockets();
-void TerminateSockets();
+int TerminateSockets();
 
 
 class UDPSocket {
@@ -23,11 +23,11 @@ public:
 	~UDPSocket();
 
 	int Open();
-	void Close();
-	int Send(const IPv4Addr &ipv4Addr, const char* buffer, int length) const;
+	int Close();
+	int Send(const IPv4Addr &ipv4Addr, const char* buf, int len) const;
 	int Send(const IPv4Addr &ipv4Addr, const char* string) const;
 	int Bind(const IPv4Addr &ipv4Addr, bool listenAll = true) const;
-	int Receive(IPv4Addr* ipv4Addr, char* buffer, int length, int* bytes, bool nonBlocking = false, bool peek = false) const;
+	int Receive(IPv4Addr* ipv4Addr, char* buf, int len, int* bytes, bool nonBlocking = false, bool peek = false) const;
 	bool IsOpen() const { return m_isOpen; }
 
 private:
@@ -44,12 +44,12 @@ public:
 	~TCPSocket();
 
 	int Connect(const IPv4Addr &ipv4Addr);
-	void Disconnect();
-	int Send(const char* buffer, int length) const;
+	int Disconnect();
+	int Send(const char* buf, int len) const;
 	int Send(const char* string) const;
-	int Receive(char* buffer, int length, int* bytes, bool peek = false) const;
-	bool IsConnected() const { return m_isConnected; }
-	bool GetBlocking() const { return m_isBlocking; }
+	int Receive(char* buf, int len, int* bytes, bool peek = false) const;
+	bool IsConnected() const;
+	bool GetBlocking() const { return m_isBlocking; } // Gets blocking mode of socket
 	int SetBlocking(bool blocking);
 
 private:
@@ -65,8 +65,8 @@ public:
 	~TCPServer();
 
 	int Start(u_short port);
-	void Stop();
-	int Accept(TCPSocket &outsock, char* ipAddr, bool nonBlocking = false) const;
+	int Stop();
+	int Accept(TCPSocket &out, char* ipAddr, bool nonBlocking = false) const;
 	bool IsRunning() const { return m_isRunning; }
 	bool GetBlocking() const { return m_isBlocking; }
 	int SetBlocking(bool blocking);

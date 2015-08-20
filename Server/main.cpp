@@ -1,41 +1,43 @@
 #include <iostream>
-#include "sockets.hpp"
 #include "lobby.hpp"
+#include <time.h>
 
-using namespace Sockets;
+/*
+	TODO:
+		Replace std::cout with custom logging that also outputs to file (log.txt)
+		Add either a .cfg file to specify port and maximum clients or use main() parameters
+*/
 
 int main(int argc, char** argv) {
-	if (InitSockets() == 0) {
-		TCPServer server;
+	// Pointer to singleton instance
+	Lobby* lobby = Lobby::Inst();
 
-		if (server.Start(1337) == 0) {
-			//server.SetBlocking(false); // Put server in non-blocking mode
+	// Start the server on the given port with the specified maximum number of clients
+	if (lobby->Start(1337, 100)) {
+		int delay = 0; // Milliseconds that the server should sleep between updates
+		int packets; // Number of packets sent and received
 
-			TCPSocket client;
-			char ipAddr[22];
+		// Run until the escape key is pressed
+		while (!GetAsyncKeyState(VK_ESCAPE)) {
+			// Call update and incremenent the number of packets
+			packets = lobby->Update();
 
-			if (server.Accept(client, ipAddr/*, true*/) == 0) {
-				// client.SetBlocking(false); // Alternative to specifying true as above in Accept(), for non-blocking functionality.
-				client.Send("Welcome!");
-
-				char buffer[256];
-				int bytes = 0;
-
-				if (client.Receive(buffer, 256, &bytes) == 0) {
-					buffer[bytes] = '\0'; // Null terminate string
-					std::cout << buffer << std::endl;
-				}
-
-				client.Disconnect();
+			// Print the packet count if any
+			if (packets > 0) {
+				std::cout << time(NULL) << ": Sent/received " << packets << " packet(s).\n";
+				delay = 0; // Reset delay any time there is activity to throttle up
 			}
-
-			server.Stop();
+	
+			// Throttle down when no activity is present to free cycles
+			if (delay < 1000) { // Sleep for no longer than a second
+				delay += 10;
+			}
+	
+			Sleep(delay);
 		}
 
-		TerminateSockets();
+		lobby->Stop();
 	}
-
-	std::cin.get();
 
 	return 0;
 }

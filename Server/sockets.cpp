@@ -16,8 +16,10 @@ namespace {
 // Initialises Winsock
 int InitSockets() {
 	if (!isLoaded) {
-		if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0) {
-			std::cerr << "WSAStartup failed." << std::endl;
+		int result = WSAStartup(MAKEWORD(2, 2), &wsaData);
+
+		if (result != 0) {
+			std::cerr << "WSAStartup failed. Error: " << result << std::endl;
 			return 1;
 		}
 
@@ -28,16 +30,22 @@ int InitSockets() {
 }
 
 // Terminates Winsock
-void TerminateSockets() {
+int TerminateSockets() {
 	if (isLoaded) {
 		if (sockCount > 0) {
 			std::cerr << "Close() must be called before TerminateSockets()" << std::endl;
-			return;
+			return 1;
 		}
 
-		WSACleanup();
+		if (WSACleanup() == SOCKET_ERROR) {
+			std::cerr << "WSACleanup() failed: Error " << WSAGetLastError() << std::endl;
+			return 1;
+		}
+
 		isLoaded = false;
 	}
+
+	return 0;
 }
 
 
@@ -77,17 +85,22 @@ int UDPSocket::Open() {
 }
 
 // Closes socket
-void UDPSocket::Close() {
+int UDPSocket::Close() {
 	if (m_isOpen) {
-		closesocket(m_socket);
+		if (closesocket(m_socket) == SOCKET_ERROR) {
+			std::cerr << "closesocket() failed: Error " << WSAGetLastError() << std::endl;
+			return 1;
+		}
 
 		m_isOpen = false;
 		sockCount--;
 	}
+
+	return 0;
 }
 
 // Sends data to an address
-int UDPSocket::Send(const IPv4Addr &ipv4Addr, const char* buffer, int length) const {
+int UDPSocket::Send(const IPv4Addr &ipv4Addr, const char* buf, int len) const {
 	if (!m_isOpen) {
 		std::cerr << "Open() must be called before Send()." << std::endl;
 		return 1;
@@ -101,7 +114,7 @@ int UDPSocket::Send(const IPv4Addr &ipv4Addr, const char* buffer, int length) co
 	sockaddrIn.sin_addr.s_addr = addr;
 	sockaddrIn.sin_port = htons(ipv4Addr.port);
 
-	if (sendto(m_socket, buffer, length, 0, (SOCKADDR*)&sockaddrIn, sizeof(sockaddrIn)) == SOCKET_ERROR) {
+	if (sendto(m_socket, buf, len, 0, (SOCKADDR*)&sockaddrIn, sizeof(sockaddrIn)) == SOCKET_ERROR) {
 		std::cerr << "sendto() failed: " << WSAGetLastError() << std::endl;
 		return 1;
 	}
@@ -141,7 +154,7 @@ int UDPSocket::Bind(const IPv4Addr &ipv4Addr, bool listenAll) const {
 }
 
 // Receives data from bound address
-int UDPSocket::Receive(IPv4Addr* ipv4Addr, char* buffer, int length, int* bytes, bool nonBlocking, bool peek) const {
+int UDPSocket::Receive(IPv4Addr* ipv4Addr, char* buf, int len, int* bytes, bool nonBlocking, bool peek) const {
 	if (!m_isOpen) {
 		std::cerr << "Open() must be called before Receive()." << std::endl;
 		return 1;
@@ -171,7 +184,7 @@ int UDPSocket::Receive(IPv4Addr* ipv4Addr, char* buffer, int length, int* bytes,
 
 	sockaddr_in sockaddrIn;
 	int addrlen = sizeof(sockaddrIn);
-	result = recvfrom(m_socket, buffer, length, !peek ? 0 : MSG_PEEK, (SOCKADDR*)&sockaddrIn, &addrlen);
+	result = recvfrom(m_socket, buf, len, !peek ? 0 : MSG_PEEK, (SOCKADDR*)&sockaddrIn, &addrlen);
 
 	if (result == SOCKET_ERROR) {
 		std::cerr << "recvfrom() failed: Error " << WSAGetLastError() << std::endl;
@@ -230,24 +243,37 @@ int TCPSocket::Connect(const IPv4Addr &ipv4Addr) {
 }
 
 // Closes socket
-void TCPSocket::Disconnect() {
+int TCPSocket::Disconnect() {
 	if (m_isConnected) {
-		shutdown(m_socket, SD_SEND);
-		closesocket(m_socket);
+		if (shutdown(m_socket, SD_SEND) == SOCKET_ERROR) {
+			int err = WSAGetLastError();
+
+			if (err != WSAENOTCONN) {
+				std::cerr << "shutdown() failed: Error " << err << std::endl;
+				return 1;
+			}
+		}
+
+		if (closesocket(m_socket) == SOCKET_ERROR) {
+			std::cerr << "closesocket() failed: Error " << WSAGetLastError() << std::endl;
+			return 1;
+		}
 
 		m_isConnected = false;
 		sockCount--;
 	}
+
+	return 0;
 }
 
 // Sends data to the connected address
-int TCPSocket::Send(const char* buffer, int length) const {
+int TCPSocket::Send(const char* buf, int len) const {
 	if (!m_isConnected) {
 		std::cerr << "Connect() must be called before Send()." << std::endl;
 		return 1;
 	}
 
-	if (send(m_socket, buffer, length, 0) == SOCKET_ERROR) {
+	if (send(m_socket, buf, len, 0) == SOCKET_ERROR) {
 		std::cerr << "send() failed: " << WSAGetLastError() << std::endl;
 		return 1;
 	}
@@ -261,13 +287,13 @@ int TCPSocket::Send(const char* string) const {
 }
 
 // Receives data from the connected address
-int TCPSocket::Receive(char* buffer, int length, int* bytes, bool peek) const {
+int TCPSocket::Receive(char* buf, int len, int* bytes, bool peek) const {
 	if (!m_isConnected) {
 		std::cerr << "Connect() must be called before Receive()." << std::endl;
 		return 1;
 	}
 
-	int result = recv(m_socket, buffer, length, !peek ? 0 : MSG_PEEK);
+	int result = recv(m_socket, buf, len, !peek ? 0 : MSG_PEEK);
 
 	if (result == SOCKET_ERROR) {
 		int err = WSAGetLastError();
@@ -284,6 +310,12 @@ int TCPSocket::Receive(char* buffer, int length, int* bytes, bool peek) const {
 	*bytes = result;
 
 	return 0;
+}
+
+// Gets status of connection
+bool TCPSocket::IsConnected() const {
+	char buf;
+	return m_isConnected && recv(m_socket, &buf, 1, MSG_PEEK) != 0;
 }
 
 // Sets blocking mode of socket
@@ -356,14 +388,27 @@ int TCPServer::Start(u_short port) {
 }
 
 // Closes socket
-void TCPServer::Stop() {
+int TCPServer::Stop() {
 	if (m_isRunning) {
-		shutdown(m_socket, SD_SEND);
-		closesocket(m_socket);
+		if (shutdown(m_socket, SD_SEND) == SOCKET_ERROR) {
+			int err = WSAGetLastError();
+
+			if (err != WSAENOTCONN) {
+				std::cerr << "shutdown() failed: Error " << err << std::endl;
+				return 1;
+			}
+		}
+
+		if (closesocket(m_socket) == SOCKET_ERROR) {
+			std::cerr << "closesocket() failed: Error " << WSAGetLastError() << std::endl;
+			return 1;
+		}
 
 		m_isRunning = false;
 		sockCount--;
 	}
+
+	return 0;
 }
 
 // Accepts an incoming connection
@@ -381,11 +426,10 @@ int TCPServer::Accept(TCPSocket &outsock, char* ipAddr, bool nonBlocking) const 
 	if (insock == INVALID_SOCKET) {
 		int err = WSAGetLastError();
 
-		if (err == WSAEWOULDBLOCK && !m_isBlocking) {
-			return 0;
+		if (err != WSAEWOULDBLOCK || m_isBlocking) {
+			std::cerr << "accept() failed: " << err << std::endl;
 		}
 
-		std::cerr << "accept() failed: " << err << std::endl;
 		return 1;
 	}
 
