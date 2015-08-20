@@ -141,19 +141,20 @@ int Lobby::ProcessClient(Client* client) {
 		buffer[bytes] = 0; // Null terminate string
 		
 		// TODO: Process each packet
-		//std::cout << "Received msg (" << bytes << ") from client <" << client->addr << ">: " << buffer << std::endl;
+		std::cout << "Received msg (" << bytes << ") from client <" << client->addr << ">: " << buffer << std::endl;
+		client->sock.Send("Message received!");
 
 		packets++; // Increment packets
 	}
 
 	// If client has been paired with another client
-	if (client->paired != nullptr) {
-		if (client->paired->sock.IsConnected()) {
-
-		} else {
-
-		}
-	}
+	//if (client->paired != nullptr) {
+	//	if (client->paired->sock.IsConnected()) {
+	//
+	//	} else {
+	//
+	//	}
+	//}
 
 	return packets;
 }
